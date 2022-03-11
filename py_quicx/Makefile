@@ -1,5 +1,5 @@
 all:
 	python setup.py build_ext --inplace
 
-clean :
+clean:
 	rm -rf *.so build/ py_quic.cpp

@@ -1,3 +1,4 @@
+cimport cython
 import numpy as np
 cimport numpy as np
 from libc.stdint cimport uint32_t, int32_t

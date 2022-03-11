@@ -443,6 +443,7 @@ void QUIC(char mode, uint32_t& p, const double* S, double* Lambda0,
 	}
 	if (msg >= QUIC_MSG_NEWTON) {
 	    MSG("  Objective value decreased by %e.\n", fXprev - fX);
+	    MSG("  Objective value : %f.\n", fX);
 	}
 	// compute W = inv(X):
 	ptrdiff_t info;

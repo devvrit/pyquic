@@ -1,4 +1,6 @@
-import py_quic
+import pyximport
+pyximport.install()
+import py_quicx.py_quic
 import numpy as np
 
 
@@ -74,6 +76,13 @@ def quic(S, L, mode="default", tol=1e-6, max_iter=1000, X0=None, W0=None,\
         else:
             X = np.eye(Sn)
             W = np.eye(Sn)
+            # for i in range(Sn):
+            #     X[i,i]=1/S[i,i]
+            #     W[i,i]=S[i,i]
+            # print("S: " + str(S))
+            # print("X: " + str(X))
+            # W = np.eye(Sn)
+            # W=S
     else:
         assert W0 is not None, "QUIC:initializations\n" +\
                 "You specified an initial value for X0 but not for W0."
@@ -120,9 +129,11 @@ def quic(S, L, mode="default", tol=1e-6, max_iter=1000, X0=None, W0=None,\
     dGap = np.zeros(optSize)
     iters = np.zeros(iterSize, dtype=np.uint32)
 
-    py_quic.quic(mode, Sn, S, _L, pathLen, path, tol, msg, max_iter,\
+    py_quic.quic(mode.encode('utf-8'), Sn, S, _L, pathLen, path, tol, msg, max_iter,\
             X, W, opt, cputime, iters, dGap)
 
+    print("opt: " + str(opt))
+    print("dGap: " + str(dGap))
     if optSize == 1:
         opt = opt[0]
         cputime = cputime[0]
