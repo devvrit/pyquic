@@ -23,8 +23,11 @@ assert exists("ER_692.mat"), "ER_692.mat missing.\n"+\
         "[2] http://www.math.nus.edu.sg/~mattohkc/Covsel-0.zip"
 
 # A 692 x 692 empirical covariance matrix
-# S = loadmat("ER_692.mat")['S']
-S = loadmat("cov.mat")['S']
+#S = loadmat("ER_692.mat")['S']
+#S = loadmat("cov.mat")['S']
+#S = np.load("../test_mat_2.pickle", allow_pickle=True) + 0.00001*np.eye(512, dtype=np.float64)
+S = np.load("../test_mat_1.pickle", allow_pickle=True) + 0.001*np.eye(1024, dtype=np.float64)
+print(torch.tensor(np.linalg.eigh(S)[0]).sort()[0])
 newS = np.zeros(S.shape)
 print(type(S))
 print(S.shape)
@@ -38,10 +41,10 @@ newS[:] = S
 # print(S)
 
 # Run in "default" mode
-X, W, opt, cputime, iters, dGap = py_quicx.quic(S=newS, L=0.005,\
-        max_iter=6000, msg=2)
+X, W, opt, cputime, iters, dGap = py_quicx.quic(S=newS, L=0.01,\
+        tol=1e-3, max_iter=2000, msg=2)
 print(X.shape)
-torch.save(torch.tensor(X), "X_quic.pt")
+torch.save(torch.tensor(X), "X_quic_mat_1_l_0.01_tle_3_mi_2k.pt")
 # test = 923.1042
 # assert_allclose(opt, test)
 assert 1==2

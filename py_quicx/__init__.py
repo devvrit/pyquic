@@ -4,7 +4,7 @@ import py_quicx.py_quic
 import numpy as np
 
 
-def quic(S, L, mode="default", tol=1e-6, max_iter=1000, X0=None, W0=None,\
+def quic(S, L, mode="default", tol=1e-5, max_iter=1000, X0=None, W0=None,\
         path=None, msg=0):
     """
     @param S        The empirical nxn covariance matrix.
@@ -76,9 +76,9 @@ def quic(S, L, mode="default", tol=1e-6, max_iter=1000, X0=None, W0=None,\
         else:
             X = np.eye(Sn)
             W = np.eye(Sn)
-            # for i in range(Sn):
-            #     X[i,i]=1/S[i,i]
-            #     W[i,i]=S[i,i]
+            for i in range(Sn):
+                X[i,i]=1/S[i,i]
+                W[i,i]=S[i,i]
             # print("S: " + str(S))
             # print("X: " + str(X))
             # W = np.eye(Sn)
