@@ -16,6 +16,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#include <cblas.h> 
 #ifdef GDEBUG
 #include "startgdb.h"
 #endif
@@ -248,6 +249,7 @@ void QUIC(char mode, uint32_t& p, const double* S, double* Lambda0,
     double* D = (double*) malloc(p*p*sizeof(double));
     double* U = (double*) malloc(p*p*sizeof(double));
     double* Lambda;
+	// computing tr(Sx) Should be easy in python
     if (pathLen > 1) {
 	Lambda = (double*) malloc(p*p*sizeof(double));
 	for (unsigned long i = 0; i < p*p; i++)
@@ -272,13 +274,21 @@ void QUIC(char mode, uint32_t& p, const double* S, double* Lambda0,
 	l1normX += Lambda[k]*fabs(X[k]);
 	trSX += X[k]*S[k];
     }
+	// end traceSX
+	//newton iteration - 
     unsigned long pathIdx = 0;
     unsigned long NewtonIter = 1;
+	double tActive=0.0;
+	double tLine=0.0;
+	double tActiveC=0.0;
+	unsigned long numOps=0;
     for (; NewtonIter <= maxNewtonIter; NewtonIter++) {
 	double normD = 0.0;
 	double diffD = 0.0;
 	double subgrad = 1e+15;	
+	
 	if (NewtonIter == 1 && IsDiag(p, X)) {
+		//special treatment for first iteration
 	    if (msg >= QUIC_MSG_NEWTON) {
 		MSG("Newton iteration 1.\n");
 		MSG("  X is a diagonal matrix.\n");
@@ -286,7 +296,8 @@ void QUIC(char mode, uint32_t& p, const double* S, double* Lambda0,
 	    memset(D, 0, p*p*sizeof(double));
 	    fX = DiagNewton(p, S, Lambda, X, W, D);
 	} else {
-	    // Compute the active set and the minimum norm subgradient:
+	    // Compute the active set and the minimum norm subgradient: Should be easy in python
+		double tBeginActiveC = clock();
 	    unsigned long numActive = 0;
 	    memset(U, 0, p*p*sizeof(double));
 	    memset(D, 0, p*p*sizeof(double));
@@ -327,21 +338,30 @@ void QUIC(char mode, uint32_t& p, const double* S, double* Lambda0,
 		    activeSet[j].i = k1;
 		    activeSet[j].j = k2;
 		}
+		tActiveC+=(clock()-tBeginActiveC)/CLOCKS_PER_SEC;
+		double tBeginActive = clock();
 		for (unsigned long l = 0; l < numActive; l++) {
 		    unsigned long i = activeSet[l].i;
 		    unsigned long j = activeSet[l].j;
 		    CoordinateDescentUpdate(p, S, Lambda, X, W,
 					    U, D, i, j, normD,
 					    diffD);
+			numOps+=1;
 		}
 		if (msg >= QUIC_MSG_CD) {
 		    MSG("  Coordinate descent sweep %ld. norm of D = %e, "
 			   "change in D = %e.\n", cdSweep, normD, diffD);
 		}
+		
+		tActive += (clock()-tBeginActive)/CLOCKS_PER_SEC;
+		
+
 		if (diffD <= normD*cdSweepTol)
 		    break;
 	    }
 	}
+	double tBeginLine = clock();
+	// beyond double precision
 	if (fX == 1e+15) {
 	    // Note that the upper triangular part is the lower
 	    // triangular part for the C arrays.
@@ -443,13 +463,14 @@ void QUIC(char mode, uint32_t& p, const double* S, double* Lambda0,
 	}
 	if (msg >= QUIC_MSG_NEWTON) {
 	    MSG("  Objective value decreased by %e.\n", fXprev - fX);
-	    MSG("  Objective value : %f.\n", fX);
+	    MSG("  Objective value with regul currently %e.\n", fX);
+	    
 	}
 	// compute W = inv(X):
 	ptrdiff_t info;
 	ptrdiff_t p0 = p;
 	dpotri_((char*) "U", &p0, W, &p0, &info);
-
+	
 	for (unsigned long i = 0; i < p; i++) {
 	    for (unsigned long j = 0; j <= i; j++) {
 		double tmp = W[i*p+j];
@@ -473,6 +494,7 @@ void QUIC(char mode, uint32_t& p, const double* S, double* Lambda0,
 		dGap[NewtonIter - 1] = gap;
 	    }
 	}
+	tLine += (clock()-tBeginLine)/CLOCKS_PER_SEC;
 	// Check for convergence.
 	if (subgrad*alpha >= l1normX*tol && (fabs((fX - fXprev)/fX) >= EPS))
 	    continue;
@@ -536,16 +558,8 @@ void QUIC(char mode, uint32_t& p, const double* S, double* Lambda0,
 	cputime[0] = elapsedTime;
     if (msg >= QUIC_MSG_MIN)
 	MSG("QUIC CPU time: %.3f seconds\n", elapsedTime);
+	MSG("QUIC Activeset update time: %e seconds\n", tActive);
+	MSG("QUIC lineasearch time: %e seconds\n", tLine);
+	MSG("QUIC Activeset finding time: %e seconds\n", tLine);
+	MSG("QUIC NumOps : %d\n", numOps);
 }
-
-// extern "C"
-// void QUICR(char** modePtr, uint32_t& p, const double* S, double* Lambda0,
-// 	   uint32_t& pathLen, const double* path, double& tol,
-// 	   int32_t& msg, uint32_t& maxIter,
-// 	   double* X, double* W, double* opt, double* cputime,
-// 	   uint32_t* iter, double* dGap)
-// {
-//     char mode = **modePtr;
-//     QUIC(mode, p, S, Lambda0, pathLen, path, tol, msg, maxIter, X, W,
-// 	 opt, cputime, iter, dGap);
-// }
